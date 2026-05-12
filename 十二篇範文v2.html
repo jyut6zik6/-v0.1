@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D十二篇試煉·隱藏陷阱·學生冒險</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Microsoft JhengHei', 'PingFang SC', 'Noto Sans CJK', sans-serif;
+        }
+        /* 開始介面覆蓋層 */
+        #startOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a1f1a, #07130f);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+            transition: opacity 0.8s ease;
+        }
+        .start-panel {
+            background: rgba(30, 25, 20, 0.85);
+            border-radius: 60px;
+            padding: 2.5rem 3rem;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            border: 1px solid #e2b87a;
+            box-shadow: 0 20px 40px black;
+            min-width: 320px;
+        }
+        .start-panel h1 {
+            color: #ffdd99;
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: 4px;
+        }
+        .start-panel p {
+            color: #cdb38c;
+            margin-bottom: 2rem;
+        }
+        .start-btn {
+            background: #2a472a;
+            border: none;
+            color: #ffefcf;
+            font-size: 1.3rem;
+            font-weight: bold;
+            padding: 10px 28px;
+            margin: 10px;
+            border-radius: 48px;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 200px;
+            font-family: inherit;
+            border-bottom: 3px solid #a5712e;
+        }
+        .start-btn:hover {
+            background: #4e7a3e;
+            transform: scale(1.02);
+        }
+        #exitGameBtn {
+            background: #542e2e;
+            border-bottom-color: #ac4a4a;
+        }
+        /* UI計數器和小地圖 */
+        #uiPanel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 32px;
+            color: #ffeaac;
+            font-weight: bold;
+            font-size: 1rem;
+            pointer-events: none;
+            z-index: 200;
+            font-family: monospace;
+        }
+        #speedStatus {
+            background: #163a1e;
+            padding: 4px 12px;
+            border-radius: 24px;
+            margin-left: 10px;
+        }
+        /* 小地圖 canvas 左下角 */
+        .minimap-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 180px;
+            height: 180px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 20px;
+            border: 2px solid #c9aa5f;
+            backdrop-filter: blur(4px);
+            z-index: 250;
+            pointer-events: none;
+        }
+        canvas.minimap {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            display: block;
+        }
+        /* 彈窗陷阱問答 */
+        .quiz-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .quiz-card {
+            background: #fef3da;
+            border-radius: 48px;
+            max-width: 480px;
+            width: 80%;
+            padding: 2rem;
+            text-align: center;
+            border: 3px solid #bd8a4a;
+            box-shadow: 0 20px 35px black;
+        }
+        .quiz-card h3 {
+            font-size: 1.8rem;
+            color: #31221a;
+        }
+        .quiz-question {
+            font-size: 1.2rem;
+            margin: 1rem 0;
+            font-weight: bold;
+            background: #fff0d0;
+            padding: 12px;
+            border-radius: 60px;
+        }
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .quiz-btn {
+            background: #d9b482;
+            border: none;
+            padding: 10px;
+            border-radius: 60px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .quiz-btn:hover {
+            background: #c49356;
+            transform: scale(1.01);
+        }
+        .speed-toast {
+            position: fixed;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2c5e2e;
+            color: #ffefaa;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeUp 0.8s ease forwards;
+            pointer-events: none;
+        }
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px);}
+            20% { opacity: 1; transform: translateX(-50%) translateY(0px);}
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-30px);}
+        }
+    </style>
+</head>
+<body>
+    <div id="startOverlay">
+        <div class="start-panel">
+            <h1>📖 十二篇範文·隱藏試煉 📖</h1>
+            <p>3D 冒險｜隱藏陷阱(20秒刷新)｜實體樹木｜學生角色跳躍動作</p>
+            <button class="start-btn" id="beginGameBtn">✨ 開始遊戲 ✨</button>
+            <button class="start-btn" id="exitGameStartBtn">🍂 結束遊戲 🍂</button>
+        </div>
+    </div>
+    <div id="uiPanel">
+        🎮 WASD移動 | 空白跳躍 (跳躍動作明顯)
+        <span id="speedStatus">🏃 基礎速度</span>
+    </div>
+    <div class="minimap-container">
+        <canvas id="minimapCanvas" class="minimap" width="300" height="300"></canvas>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+        
+        // ---------- 初始化場景 ----------
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x112233);
+        scene.fog = new THREE.FogExp2(0x112233, 0.008);
+        
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(8, 6, 12);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        document.body.appendChild(labelRenderer.domElement);
+        
+        // ---------- 地面與世界邊界 ----------
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x4c7e3f, roughness: 0.7, metalness: 0.1 });
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.5;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        const gridHelper = new THREE.GridHelper(40, 20, 0xdeaa88, 0x88aa77);
+        gridHelper.position.y = -0.4;
+        scene.add(gridHelper);
+        
+        // 照明
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xfff5e0, 1);
+        dirLight.position.set(5, 12, 4);
+        dirLight.castShadow = true;
+        dirLight.receiveShadow = false;
+        scene.add(dirLight);
+        const backLight = new THREE.PointLight(0xaa8866, 0.4);
+        backLight.position.set(-2, 3, -4);
+        scene.add(backLight);
+        
+        // ---------- 樹木（實體，具備阻隔）----------
+        const trees = []; // 存儲樹木的碰撞盒 { mesh, radius, position }
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B5A2B });
+        const foliageMat = new THREE.MeshStandardMaterial({ color: 0x5FAD41 });
+        function addTree(x, z) {
+            const group = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.65, 1.2), trunkMat);
+            trunk.position.y = 0;
+            trunk.castShadow = true;
+            const foliage1 = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.1, 6), foliageMat);
+            foliage1.position.y = 0.9;
+            foliage1.castShadow = true;
+            const foliage2 = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.9, 6), foliageMat);
+            foliage2.position.y = 1.5;
+            foliage2.castShadow = true;
+            group.add(trunk, foliage1, foliage2);
+            group.position.set(x, -0.3, z);
+            scene.add(group);
+            trees.push({ mesh: group, radius: 0.65, position: { x, z } });
+        }
+        // 生成樹木 (避開中心區域)
+        for (let i = 0; i < 70; i++) {
+            let x = (Math.random() - 0.5) * 34;
+            let z = (Math.random() - 0.5) * 34;
+            if (Math.hypot(x, z) < 3.2) continue; // 避開初始區域
+            let conflict = false;
+            for(let t of trees) if(Math.hypot(t.position.x - x, t.position.z - z) < 1.2) { conflict=true; break;}
+            if(!conflict) addTree(x, z);
+        }
+        
+        // ---------- 學生角色 (3D建模 + 跳躍動作) ----------
+        const studentGroup = new THREE.Group();
+        // 身體 (T恤)
+        const bodyGeo = new THREE.BoxGeometry(0.55, 0.7, 0.45);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x6c8fc7 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 0.35;
+        body.castShadow = true;
+        studentGroup.add(body);
+        // 頭部
+        const headGeo = new THREE.SphereGeometry(0.4, 24, 24);
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xffddbb });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 0.85;
+        head.castShadow = true;
+        studentGroup.add(head);
+        // 眼睛
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16), eyeMat);
+        leftEye.position.set(-0.15, 0.95, 0.42);
+        const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16), eyeMat);
+        rightEye.position.set(0.15, 0.95, 0.42);
+        studentGroup.add(leftEye, rightEye);
+        // 頭髮 (黑色片狀)
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x3a2817 });
+        const hair = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 0.55), hairMat);
+        hair.position.y = 1.05;
+        studentGroup.add(hair);
+        // 四肢 (手臂與腿，用簡單圓柱，方便動畫)
+        const armMat = new THREE.MeshStandardMaterial({ color: 0x6c8fc7 });
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x3a5e7a });
+        const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 6), armMat);
+        leftArm.position.set(-0.45, 0.65, 0);
+        leftArm.castShadow = true;
+        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 6), armMat);
+        rightArm.position.set(0.45, 0.65, 0);
+        rightArm.castShadow = true;
+        const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.65, 6), legMat);
+        leftLeg.position.set(-0.2, 0.05, 0);
+        leftLeg.castShadow = true;
+        const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.65, 6), legMat);
+        rightLeg.position.set(0.2, 0.05, 0);
+        rightLeg.castShadow = true;
+        studentGroup.add(leftArm, rightArm, leftLeg, rightLeg);
+        studentGroup.position.set(0, -0.2, 0);
+        studentGroup.castShadow = true;
+        scene.add(studentGroup);
+        
+        // 跳躍動畫相關
+        let isJumpAnimating = false;
+        let armRotationSpeed = 0;
+        let originalArmRot = { left: 0, right: 0 };
+        leftArm.rotation.z = 0.2;
+        rightArm.rotation.z = -0.2;
+        function updateJumpAnimation(delta) {
+            if (!isJumpAnimating) return;
+            armRotationSpeed += delta * 12;
+            const angle = Math.sin(armRotationSpeed * 12) * 0.9;
+            leftArm.rotation.x = angle * 0.7;
+            rightArm.rotation.x = -angle * 0.7;
+            leftLeg.rotation.x = angle * 0.5;
+            rightLeg.rotation.x = -angle * 0.5;
+            if (armRotationSpeed > Math.PI * 1.2) {
+                isJumpAnimating = false;
+                leftArm.rotation.x = 0;
+                rightArm.rotation.x = 0;
+                leftLeg.rotation.x = 0;
+                rightLeg.rotation.x = 0;
+                leftArm.rotation.z = 0.2;
+                rightArm.rotation.z = -0.2;
+            }
+        }
+        function triggerJumpAnimation() {
+            isJumpAnimating = true;
+            armRotationSpeed = 0;
+        }
+        
+        // 角色控制器狀態
+        let moveSpeed = 3.2;
+        let baseSpeed = 3.2;
+        let speedBuffTimer = null;
+        let velocityY = 0;
+        let isGrounded = true;
+        const GRAVITY = 18;
+        const JUMP_POWER = 6.8;
+        let keys = { w: false, s: false, a: false, d: false, space: false };
+        const cameraOffset = new THREE.Vector3(-5, 3.5, 6);
+        
+        // ---------- 陷阱系統 (隱藏，隨機生成，每20秒重置位置) ----------
+        const trapQuestions = [
+            { q: "《論仁·論君子》中，孔子認為『君子』與『小人』的主要區別在於？", opt1: "君子喻於義，小人喻於利", opt2: "君子求諸己，小人求諸人", correct: 0 },
+            { q: "韓愈《師說》中，『道之所存，師之所存也』強調？", opt1: "道理存在的地方就是老師所在", opt2: "老師的地位崇高", correct: 0 },
+            { q: "柳宗元《始得西山宴遊記》中『心凝形釋，與萬化冥合』表達了？", opt1: "物我合一，精神解脫", opt2: "遊山玩水的疲憊", correct: 0 },
+            { q: "范仲淹《岳陽樓記》『先天下之憂而憂，後天下之樂而樂』體現何種情懷？", opt1: "以天下為己任", opt2: "歸隱田園", correct: 0 },
+            { q: "蘇洵《六國論》指出六國破滅的根本原因是？", opt1: "賂秦而力虧", opt2: "戰術失誤", correct: 0 },
+            { q: "諸葛亮《出師表》中『親賢臣，遠小人』是對誰的勸諫？", opt1: "後主劉禪", opt2: "劉備", correct: 0 },
+            { q: "《廉頗藺相如列傳》中，藺相如『先國家之急而後私仇』，體現何種品德？", opt1: "顧全大局", opt2: "勇敢善戰", correct: 0 },
+            { q: "孟子《魚我所欲也》中，『捨生取義』的前提是？", opt1: "二者不可得兼", opt2: "生命可貴", correct: 0 },
+            { q: "荀子《勸學》中，『鍥而不捨，金石可鏤』主要在強調？", opt1: "堅持不懈", opt2: "學習工具", correct: 0 },
+            { q: "莊子《逍遙遊》中，『大鵬』象徵？", opt1: "遠大志向，有待而飛", opt2: "絕對自由", correct: 0 },
+            { q: "《論語·里仁》『見賢思齊焉，見不賢而內自省也』意在？", opt1: "自我反省與學習", opt2: "批評他人", correct: 0 },
+            { q: "《始得西山宴遊記》中『特立』一詞，形容西山？", opt1: "超凡脫俗，不與培塿為類", opt2: "孤獨聳立", correct: 0 },
+            { q: "《師說》中提出『弟子不必不如師，師不必賢於弟子』的原因是？", opt1: "聞道有先後，術業有專攻", opt2: "年齡差距", correct: 0 }
+        ];
+        
+        let traps = []; // 每個陷阱 { x, z, question, colliderRadius, active }
+        const TRAP_COUNT = 12;
+        const TRAP_RADIUS = 0.65;
+        
+        function generateRandomTraps() {
+            // 移除舊陷阱的可視化標記 (隱藏陷阱，但在地圖上沒有模型)
+            traps.forEach(t => {
+                if(t.label) scene.remove(t.label);
+            });
+            traps = [];
+            for(let i=0; i<TRAP_COUNT; i++) {
+                let placed = false;
+                let attempts = 0;
+                while(!placed && attempts<60) {
+                    const x = (Math.random() - 0.5) * 30;
+                    const z = (Math.random() - 0.5) * 30;
+                    if(Math.hypot(x, z) < 2.2) continue;
+                    let overlap = false;
+                    for(let t of traps) if(Math.hypot(t.x - x, t.z - z) < 1.2) overlap=true;
+                    for(let tree of trees) if(Math.hypot(tree.position.x - x, tree.position.z - z) < 0.9) overlap=true;
+                    if(!overlap) {
+                        const q = trapQuestions[Math.floor(Math.random() * trapQuestions.length)];
+                        traps.push({ x, z, question: q, radius: TRAP_RADIUS, active: true });
+                        placed=true;
+                    }
+                    attempts++;
+                }
+                if(!placed) traps.push({ x: (Math.random()-0.5)*26, z: (Math.random()-0.5)*26, question: trapQuestions[0], radius: TRAP_RADIUS, active: true });
+            }
+        }
+        
+        // 每20秒刷新陷阱位置
+        setInterval(() => {
+            if(!gameActive) return;
+            generateRandomTraps();
+            const msg = document.createElement('div'); msg.className='speed-toast'; msg.innerText='⚠️ 隱藏陷阱已轉移位置 (20秒) ⚠️'; document.body.appendChild(msg); setTimeout(()=>msg.remove(),1500);
+        }, 20000);
+        
+        // 移動NPC (2個)
+        class MovingNPC {
+            constructor(scene, startX, startZ, color) {
+                this.scene = scene;
+                this.mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.9, 8), new THREE.MeshStandardMaterial({ color: color, emissive: 0x331c00 }));
+                this.mesh.position.set(startX, -0.2, startZ);
+                this.mesh.castShadow = true;
+                this.dir = new THREE.Vector2((Math.random() - 0.5)*2, (Math.random() - 0.5)*2).normalize();
+                this.speed = 1.3;
+                this.radius = 0.7;
+                this.labelDiv = document.createElement('div');
+                this.labelDiv.textContent = '🗣️ 導師·加速';
+                this.labelDiv.style.background = '#3a280e';
+                this.labelDiv.style.padding = '2px 8px';
+                this.labelDiv.style.borderRadius = '30px';
+                this.labelDiv.style.color = '#ffefb9';
+                this.label = new CSS2DObject(this.labelDiv);
+                this.label.position.set(startX, 0.7, startZ);
+                scene.add(this.label);
+                scene.add(this.mesh);
+            }
+            update(delta) {
+                let nx = this.mesh.position.x + this.dir.x * this.speed * delta;
+                let nz = this.mesh.position.z + this.dir.y * this.speed * delta;
+                if(Math.abs(nx) > 16) { this.dir.x *= -1; nx = this.mesh.position.x + this.dir.x * this.speed * delta; }
+                if(Math.abs(nz) > 16) { this.dir.y *= -1; nz = this.mesh.position.z + this.dir.y * this.speed * delta; }
+                this.mesh.position.set(nx, -0.2, nz);
+                this.label.position.set(nx, 0.7, nz);
+            }
+            getPos() { return { x: this.mesh.position.x, z: this.mesh.position.z }; }
+        }
+        
+        const npcs = [];
+        function initNPCs() {
+            npcs.push(new MovingNPC(scene, 3.5, 3.2, 0x7c9ad0));
+            npcs.push(new MovingNPC(scene, -3, -3.5, 0xd09e6f));
+        }
+        
+        function applySpeedBuff() {
+            if(speedBuffTimer) clearTimeout(speedBuffTimer);
+            moveSpeed = baseSpeed * 2;
+            document.getElementById('speedStatus').innerHTML = '⚡ 雙倍疾走 ⚡';
+            speedBuffTimer = setTimeout(() => {
+                moveSpeed = baseSpeed;
+                document.getElementById('speedStatus').innerHTML = '🏃 基礎速度';
+            }, 5000);
+            const toast = document.createElement('div');
+            toast.className = 'speed-toast';
+            toast.innerText = '✨ NPC賜福！移動速度2倍 (5秒) ✨';
+            document.body.appendChild(toast);
+            setTimeout(()=>toast.remove(), 2000);
+        }
+        
+        let isQuizOpen = false;
+        let gameActive = true;
+        function showQuiz(questionObj, onResult) {
+            if(isQuizOpen) return;
+            isQuizOpen = true;
+            const modal = document.createElement('div');
+            modal.className = 'quiz-modal';
+            modal.innerHTML = `
+                <div class="quiz-card">
+                    <h3>📜 十二篇範文試煉</h3>
+                    <div class="quiz-question">${escapeHtml(questionObj.q)}</div>
+                    <div class="quiz-options">
+                        <button class="quiz-btn" id="quizOpt0">🔰 ${escapeHtml(questionObj.opt1)}</button>
+                        <button class="quiz-btn" id="quizOpt1">🔰 ${escapeHtml(questionObj.opt2)}</button>
+                    </div>
+                    <div style="font-size:12px;">答錯將終止遊戲...</div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            const handleAnswer = (selectedIdx) => {
+                if(!isQuizOpen) return;
+                const isCorrect = (selectedIdx === questionObj.correct);
+                modal.remove();
+                isQuizOpen = false;
+                if(isCorrect) {
+                    onResult(true);
+                    const okMsg = document.createElement('div'); okMsg.className='speed-toast'; okMsg.innerText='✅ 答對！陷阱消散，繼續冒險 ✅'; document.body.appendChild(okMsg); setTimeout(()=>okMsg.remove(),1500);
+                } else {
+                    onResult(false);
+                    const failMsg = document.createElement('div'); failMsg.className='speed-toast'; failMsg.innerText='❌ 答錯... 遊戲即將關閉 ❌'; document.body.appendChild(failMsg); setTimeout(()=>failMsg.remove(),800);
+                    setTimeout(() => closeGameWindow(), 1000);
+                }
+            };
+            document.getElementById('quizOpt0').addEventListener('click', () => handleAnswer(0));
+            document.getElementById('quizOpt1').addEventListener('click', () => handleAnswer(1));
+        }
+        
+        function closeGameWindow() { window.close(); setTimeout(() => alert("無法自動關閉請手動關閉分頁"), 200); }
+        function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;});}
+        
+        // 碰撞檢測：樹木實體、陷阱、NPC
+        function handleCollisions() {
+            if(!gameActive || isQuizOpen) return;
+            const px = studentGroup.position.x, pz = studentGroup.position.z;
+            // 樹木碰撞
+            for(let tree of trees) {
+                const dx = px - tree.position.x, dz = pz - tree.position.z;
+                const dist = Math.hypot(dx, dz);
+                if(dist < 0.75) {
+                    const angle = Math.atan2(dz, dx);
+                    const pushX = Math.cos(angle) * (0.75 - dist);
+                    const pushZ = Math.sin(angle) * (0.75 - dist);
+                    studentGroup.position.x += pushX;
+                    studentGroup.position.z += pushZ;
+                }
+            }
+            // 陷阱碰撞 (隱藏、一旦觸發問答)
+            for(let i=0; i<traps.length; i++) {
+                const t = traps[i];
+                const dx = px - t.x, dz = pz - t.z;
+                if(Math.abs(dx) < TRAP_RADIUS && Math.abs(dz) < TRAP_RADIUS) {
+                    if(!isQuizOpen && gameActive) {
+                        const q = t.question;
+                        showQuiz(q, (correct) => {
+                            if(correct) {
+                                traps.splice(i,1);
+                            } else {
+                                gameActive = false;
+                            }
+                        });
+                    }
+                    break;
+                }
+            }
+            // NPC碰撞 (加速)
+            for(let npc of npcs) {
+                const pos = npc.getPos();
+                if(Math.hypot(px - pos.x, pz - pos.z) < 0.85) {
+                    if(!isQuizOpen && gameActive) {
+                        applySpeedBuff();
+                        npc.mesh.position.set((Math.random()-0.5)*18, -0.2, (Math.random()-0.5)*18);
+                        npc.label.position.copy(npc.mesh.position);
+                        npc.label.position.y = 0.7;
+                    }
+                }
+            }
+        }
+        
+        // 小地圖繪製 (隱藏陷阱不會顯示位置，但維持功能性)
+        const miniCanvas = document.getElementById('minimapCanvas');
+        const miniCtx = miniCanvas.getContext('2d');
+        function updateMinimap() {
+            const size = 300;
+            miniCtx.clearRect(0, 0, size, size);
+            miniCtx.fillStyle = '#2d3e2b';
+            miniCtx.fillRect(0, 0, size, size);
+            function mapX(x) { return ((x + 18) / 36) * size; }
+            function mapZ(z) { return ((z + 18) / 36) * size; }
+            // 樹木顯示
+            trees.forEach(t => {
+                miniCtx.fillStyle = '#3d9e53';
+                miniCtx.beginPath();
+                miniCtx.arc(mapX(t.position.x), mapZ(t.position.z), 3, 0, 2*Math.PI);
+                miniCtx.fill();
+            });
+            npcs.forEach(n => {
+                miniCtx.fillStyle = '#ffcc77';
+                miniCtx.beginPath();
+                miniCtx.arc(mapX(n.mesh.position.x), mapZ(n.mesh.position.z), 5, 0, 2*Math.PI);
+                miniCtx.fill();
+            });
+            // 玩家
+            miniCtx.fillStyle = '#99ffcc';
+            miniCtx.beginPath();
+            miniCtx.arc(mapX(studentGroup.position.x), mapZ(studentGroup.position.z), 6, 0, 2*Math.PI);
+            miniCtx.fill();
+            miniCtx.strokeStyle = 'white';
+            miniCtx.lineWidth = 2;
+            miniCtx.strokeRect(0,0,size,size);
+        }
+        
+        // 遊戲開始
+        document.getElementById('beginGameBtn').onclick = () => {
+            document.getElementById('startOverlay').style.display = 'none';
+            gameActive = true;
+            isQuizOpen = false;
+            studentGroup.position.set(0, -0.2, 0);
+            velocityY = 0;
+            isGrounded = true;
+            moveSpeed = baseSpeed;
+            if(speedBuffTimer) clearTimeout(speedBuffTimer);
+            document.getElementById('speedStatus').innerHTML = '🏃 基礎速度';
+            generateRandomTraps();
+        };
+        document.getElementById('exitGameStartBtn').onclick = () => { closeGameWindow(); };
+        
+        // 鍵盤
+        window.addEventListener('keydown', (e) => {
+            const k = e.code.toLowerCase();
+            if(k === 'keyw') keys.w = true;
+            if(k === 'keys') keys.s = true;
+            if(k === 'keya') keys.a = true;
+            if(k === 'keyd') keys.d = true;
+            if(k === 'space') { e.preventDefault(); if(!keys.space && isGrounded && gameActive && !isQuizOpen) triggerJumpAnimation(); keys.space = true; }
+        });
+        window.addEventListener('keyup', (e) => {
+            const k = e.code.toLowerCase();
+            if(k === 'keyw') keys.w = false;
+            if(k === 'keys') keys.s = false;
+            if(k === 'keya') keys.a = false;
+            if(k === 'keyd') keys.d = false;
+            if(k === 'space') keys.space = false;
+        });
+        
+        let lastTime = performance.now();
+        function updateMovement(deltaSec) {
+            if(!gameActive || isQuizOpen) return;
+            let moveX = 0, moveZ = 0;
+            if(keys.w) moveZ -= 1;
+            if(keys.s) moveZ += 1;
+            if(keys.a) moveX -= 1;
+            if(keys.d) moveX += 1;
+            if(moveX !==0 || moveZ !==0) { const len = Math.hypot(moveX, moveZ); moveX /= len; moveZ /= len; }
+            const speed = moveSpeed * deltaSec;
+            let newX = studentGroup.position.x + moveX * speed;
+            let newZ = studentGroup.position.z + moveZ * speed;
+            const bound = 17;
+            newX = Math.min(bound, Math.max(-bound, newX));
+            newZ = Math.min(bound, Math.max(-bound, newZ));
+            studentGroup.position.x = newX;
+            studentGroup.position.z = newZ;
+            
+            if(keys.space && isGrounded && gameActive && !isQuizOpen) {
+                velocityY = JUMP_POWER;
+                isGrounded = false;
+                keys.space = false;
+            }
+            if(!isGrounded) {
+                velocityY -= GRAVITY * deltaSec;
+                studentGroup.position.y += velocityY * deltaSec;
+                if(studentGroup.position.y <= -0.2) {
+                    studentGroup.position.y = -0.2;
+                    velocityY = 0;
+                    isGrounded = true;
+                }
+            } else {
+                studentGroup.position.y = -0.2;
+            }
+            
+            camera.position.x = studentGroup.position.x + cameraOffset.x;
+            camera.position.z = studentGroup.position.z + cameraOffset.z;
+            camera.position.y = studentGroup.position.y + cameraOffset.y + 0.5;
+            camera.lookAt(studentGroup.position);
+        }
+        
+        function animate() {
+            const now = performance.now();
+            let delta = Math.min(0.033, (now - lastTime) / 1000);
+            lastTime = now;
+            if(delta > 0.01) {
+                updateMovement(delta);
+                for(let npc of npcs) npc.update(delta);
+                handleCollisions();
+                updateJumpAnimation(delta);
+                updateMinimap();
+            }
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        
+        generateRandomTraps();
+        initNPCs();
+        animate();
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
